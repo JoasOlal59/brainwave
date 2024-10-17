@@ -1,85 +1,12 @@
 # brainwave
- AI-powered education platform 
-ai-edu-tools/
-├── components/
-│   ├── DocumentUploader.tsx
-│   ├── LearnerInteraction.tsx
-│   ├── SchemeOfWorkGenerator.tsx
-│   └── Layout.tsx
-├── lib/
-│   └── prisma.ts
-├── pages/
-│   ├── api/
-│   │   ├── documents/
-│   │   │   └── upload.ts
-│   │   ├── interact.ts
-│   │   ├── feedback.ts
-│   │   ├── saveInteraction.ts
-│   │   └── generateSchemeOfWork.ts
-│   ├── _app.tsx
-│   └── index.tsx
-├── prisma/
-│   └── schema.prisma
-├── utils/
-│   ├── auth.ts
-│   ├── cache.ts
-│   ├── rateLimit.ts
-│   └── vectorSearch.ts
-├── .env
-├── next.config.js
-└── package.json
-{
-  "name": "ai-edu-tools",
-  "version": "1.0.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "prisma generate && next build",
-    "start": "next start",
-    "lint": "next lint",
-    "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate deploy",
-    "postinstall": "prisma generate"
-  },
-  "dependencies": {
-    "@prisma/client": "^4.14.0",
-    "axios": "^1.4.0",
-    "express-rate-limit": "^6.7.0",
-    "express-slow-down": "^1.6.0",
-    "formidable": "^2.1.1",
-    "jsonwebtoken": "^9.0.0",
-    "next": "^13.4.2",
-    "node-cache": "^5.1.2",
-    "openai": "^3.2.1",
-    "react": "18.2.0",
-    "react-dom": "18.2.0"
-  },
-  "devDependencies": {
-    "@types/formidable": "^2.0.5",
-    "@types/jsonwebtoken": "^9.0.2",
-    "@types/node": "^20.1.3",
-    "@types/react": "^18.2.6",
-    "@types/react-dom": "^18.2.4",
-    "eslint": "^8.40.0",
-    "eslint-config-next": "^13.4.2",
-    "prisma": "^4.14.0",
-    "typescript": "^5.0.4"
-  }
-}
-DATABASE_URL="postgresql://username:password@host:port/database_name?schema=public"
-JWT_SECRET="your-very-secret-jwt-key"
-OPENAI_API_KEY="your-openai-api-key"
-NODE_ENV="development"
-PORT=3000
-FRONTEND_URL="http://localhost:3000"
-const frontendUrl = process.env.FRONTEND_URL;
-module.exports = {
-  reactStrictMode: true,
-  output: 'standalone',
-}
-module.exports = {
-  reactStrictMode: true,
-}
+npx create-next-app@latest ai-education-platform --typescript
+cd ai-education-platform
+npm install @prisma/client bcrypt jsonwebtoken axios formidable openai rate-limiter-flexible
+npm install --save-dev prisma @types/bcrypt @types/jsonwebtoken @types/formidable
+npx prisma init
+DATABASE_URL="postgresql://username:password@localhost:5432/ai_education_db?schema=public"
+JWT_SECRET="your_very_secret_jwt_key"
+OPENAI_API_KEY="your_openai_api_key"
 generator client {
   provider = "prisma-client-js"
 }
@@ -90,216 +17,243 @@ datasource db {
 }
 
 model User {
-  id           Int           @id @default(autoincrement())
-  email        String        @unique
-  password     String
-  role         String        @default("student")
-  documents    Document[]
-  interactions Interaction[]
-  schemesOfWork SchemeOfWork[]
+  id            Int      @id @default(autoincrement())
+  email         String   @unique
+  password      String
+  role          String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  documents     Document[]
+  interactions  Interaction[]
+  progress      Progress[]
 }
 
 model Document {
-  id        Int                @id @default(autoincrement())
-  userId    Int
-  user      User               @relation(fields: [userId], references: [id])
-  title     String
-  content   String             @db.Text
-  mimeType  String
-  createdAt DateTime           @default(now())
-  updatedAt DateTime           @updatedAt
-  embedding DocumentEmbedding?
-  sources   Source[]
-}
-
-model DocumentEmbedding {
-  id         Int      @id @default(autoincrement())
-  documentId Int      @unique
-  document   Document @relation(fields: [documentId], references: [id])
-  embedding  Float[]
-}
-
-model Interaction {
   id        Int      @id @default(autoincrement())
+  title     String
+  content   String
   userId    Int
   user      User     @relation(fields: [userId], references: [id])
-  query     String
-  answer    String   @db.Text
-  rating    Int?
-  saved     Boolean  @default(false)
-  createdAt DateTime @default(now())
-  sources   Source[]
-}
-
-model Source {
-  id            Int          @id @default(autoincrement())
-  interactionId Int
-  interaction   Interaction  @relation(fields: [interactionId], references: [id])
-  type          SourceType
-  documentId    Int?
-  document      Document?    @relation(fields: [documentId], references: [id])
-  title         String
-  url           String?
-}
-
-model SchemeOfWork {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id])
-  title     String
-  content   String   @db.Text
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-enum SourceType {
-  DOCUMENT
-  WEB
+model Interaction {
+  id        Int      @id @default(autoincrement())
+  query     String
+  answer    String
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
 }
+
+model Progress {
+  id                   Int      @id @default(autoincrement())
+  userId               Int
+  user                 User     @relation(fields: [userId], references: [id])
+  documentId           Int
+  completionPercentage Float
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model SchemeOfWork {
+  id        Int      @id @default(autoincrement())
+  title     String
+  content   String
+  createdBy Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+npx prisma migrate dev --name init
 import { PrismaClient } from '@prisma/client'
 
-declare global {
-  var prisma: PrismaClient | undefined
+let prisma: PrismaClient
+
+if (process.env.NODE_ENV === 'production') {
+  prisma = new PrismaClient()
+} else {
+  if (!global.prisma) {
+    global.prisma = new PrismaClient()
+  }
+  prisma = global.prisma
 }
-
-export const prisma = global.prisma || new PrismaClient()
-
-if (process.env.NODE_ENV !== 'production') global.prisma = prisma
 
 export default prisma
-import { NextApiRequest, NextApiResponse } from 'next'
 import jwt from 'jsonwebtoken'
+import bcrypt from 'bcrypt'
+import { NextApiRequest, NextApiResponse } from 'next'
 
-export interface AuthenticatedRequest extends NextApiRequest {
-  user?: {
-    id: number;
-    email: string;
-    role: string;
-  };
+export const hashPassword = async (password: string): Promise<string> => {
+  return bcrypt.hash(password, 10)
 }
 
-export function authenticateToken(handler: (req: AuthenticatedRequest, res: NextApiResponse) => Promise<void>) {
-  return async (req: AuthenticatedRequest, res: NextApiResponse) => {
-    const authHeader = req.headers['authorization']
-    const token = authHeader && authHeader.split(' ')[1]
+export const comparePasswords = async (password: string, hashedPassword: string): Promise<boolean> => {
+  return bcrypt.compare(password, hashedPassword)
+}
 
-    if (!token) {
-      return res.status(401).json({ error: 'Authentication token required' })
-    }
+export const generateToken = (userId: number, email: string, role: string): string => {
+  return jwt.sign({ userId, email, role }, process.env.JWT_SECRET!, { expiresIn: '1d' })
+}
 
-    try {
-      const user = jwt.verify(token, process.env.JWT_SECRET!) as { id: number; email: string; role: string }
-      req.user = user
-      return handler(req, res)
-    } catch (error) {
-      return res.status(403).json({ error: 'Invalid token' })
-    }
+export const verifyToken = (token: string): any => {
+  return jwt.verify(token, process.env.JWT_SECRET!)
+}
+
+export const authenticateUser = (handler: any) => async (req: NextApiRequest, res: NextApiResponse) => {
+  const token = req.headers.authorization?.split(' ')[1]
+  if (!token) {
+    return res.status(401).json({ error: 'Authentication required' })
+  }
+
+  try {
+    const decoded = verifyToken(token)
+    req.user = decoded
+    return handler(req, res)
+  } catch (error) {
+    return res.status(401).json({ error: 'Invalid token' })
   }
 }
-import NodeCache from 'node-cache'
 
-const cache = new NodeCache({ stdTTL: 600 })
-
-export function cacheMiddleware(key: string, ttl?: number) {
-  return async (req: any, res: any, next: () => void) => {
-    const cachedResponse = cache.get(key)
-    if (cachedResponse) {
-      return res.json(cachedResponse)
-    }
-    res.sendResponse = res.json
-    res.json = (body: any) => {
-      cache.set(key, body, ttl)
-      res.sendResponse(body)
-    }
-    next()
+export const authorizeRoles = (...roles: string[]) => (handler: any) => async (req: NextApiRequest, res: NextApiResponse) => {
+  if (!roles.includes(req.user.role)) {
+    return res.status(403).json({ error: 'Access denied' })
   }
+  return handler(req, res)
 }
-import rateLimit from 'express-rate-limit'
-import slowDown from 'express-slow-down'
+import { Configuration, OpenAIApi } from 'openai'
 
-export const applyMiddleware = (handler: any) => {
-  return rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 100
-  })(slowDown({
-    windowMs: 15 * 60 * 1000,
-    delayAfter: 50,
-    delayMs: 500
-  })(handler))
-}
-import { OpenAIApi, Configuration } from 'openai'
-import prisma from '../lib/prisma'
+const configuration = new Configuration({
+  apiKey: process.env.OPENAI_API_KEY,
+})
+const openai = new OpenAIApi(configuration)
 
-const openai = new OpenAIApi(new Configuration({ apiKey: process.env.OPENAI_API_KEY }))
-
-async function getEmbedding(text: string) {
-  const response = await openai.createEmbedding({
-    model: "text-embedding-ada-002",
-    input: text,
+export const generateAnswer = async (context: string, query: string): Promise<string> => {
+  const completion = await openai.createCompletion({
+    model: "text-davinci-002",
+    prompt: `Context: ${context}\n\nQuestion: ${query}\n\nAnswer:`,
+    max_tokens: 150,
+    n: 1,
+    stop: null,
+    temperature: 0.7,
   })
-  return response.data.data[0].embedding
+
+  return completion.data.choices[0].text.trim()
 }
 
-export async function indexDocument(documentId: number, content: string) {
-  const embedding = await getEmbedding(content)
-  await prisma.documentEmbedding.create({
-    data: {
-      documentId,
-      embedding,
-    },
+export const generateSchemeOfWork = async (title: string, details: string, topics: string[], objectives: string[]): Promise<string> => {
+  const prompt = `Generate a scheme of work for a course titled "${title}". 
+  Course details: ${details}
+  Topics: ${topics.join(', ')}
+  Learning objectives: ${objectives.join(', ')}
+  
+  Please provide a detailed week-by-week plan including activities and assessments.`
+
+  const completion = await openai.createCompletion({
+    model: "text-davinci-002",
+    prompt: prompt,
+    max_tokens: 1000,
+    n: 1,
+    stop: null,
+    temperature: 0.7,
   })
+
+  return completion.data.choices[0].text.trim()
+}
+export const validateEmail = (email: string): boolean => {
+  const re = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+  return re.test(email)
 }
 
-export async function searchDocuments(query: string, userId: number) {
-  const queryEmbedding = await getEmbedding(query)
-  
-  const results = await prisma.$queryRaw`
-    SELECT d.id, d.title, d.content,
-           1 - (e.embedding <=> ${queryEmbedding}::vector) as similarity
-    FROM "Document" d
-    JOIN "DocumentEmbedding" e ON d.id = e."documentId"
-    WHERE d."userId" = ${userId}
-    ORDER BY similarity DESC
-    LIMIT 5
-  `
-  
-  return results
+export const validatePassword = (password: string): boolean => {
+  return password.length >= 8
 }
-    import { createClient } from '@supabase/supabase-js'
-    import config from '../../config'
 
-    const supabase = createClient(config.supabaseUrl, config.supabaseKey)
+export const validateRole = (role: string): boolean => {
+  const validRoles = ['learner', 'teacher', 'administrator']
+  return validRoles.includes(role)
+}
+import type { NextApiRequest, NextApiResponse } from 'next'
+import prisma from '../../../lib/prisma'
+import { hashPassword, generateToken } from '../../../utils/auth'
+import { validateEmail, validatePassword, validateRole } from '../../../utils/validation'
 
-    // Example query
-    const { data, error } = await supabase
-      .from('documents')
-      .select('*')
-      .eq('user_id', userId)
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' })
+  }
 
-    if (error) {
-      console.error('Error fetching documents:', error)
-      return []
+  const { email, password, role } = req.body
+
+  if (!validateEmail(email)) {
+    return res.status(400).json({ error: 'Invalid email' })
+  }
+
+  if (!validatePassword(password)) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters long' })
+  }
+
+  if (!validateRole(role)) {
+    return res.status(400).json({ error: 'Invalid role' })
+  }
+
+  try {
+    const existingUser = await prisma.user.findUnique({ where: { email } })
+    if (existingUser) {
+      return res.status(400).json({ error: 'User already exists' })
     }
 
-    return data
+    const hashedPassword = await hashPassword(password)
+    const user = await prisma.user.create({
+      data: { email, password: hashedPassword, role },
+    })
+
+    const token = generateToken(user.id, user.email, user.role)
+    res.status(201).json({ token, user: { id: user.id, email: user.email, role: user.role } })
+  } catch (error) {
+    console.error('Registration error:', error)
+    res.status(500).json({ error: 'Error registering user' })
   }
-import config from '../../config';
-import { PrismaClient } from '@prisma/client';
-import { Configuration, OpenAIApi } from 'openai';
+}
+import type { NextApiRequest, NextApiResponse } from 'next'
+import prisma from '../../../lib/prisma'
+import { comparePasswords, generateToken } from '../../../utils/auth'
+import { validateEmail } from '../../../utils/validation'
 
-const prisma = new PrismaClient({
-  datasources: { db: { url: config.databaseUrl } },
-});
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' })
+  }
 
-const openai = new OpenAIApi(new Configuration({ apiKey: config.openaiApiKey }));
+  const { email, password } = req.body
 
-// Use prisma and openai in your API routes
-import { NextApiResponse } from 'next'
+  if (!validateEmail(email)) {
+    return res.status(400).json({ error: 'Invalid email' })
+  }
+
+  try {
+    const user = await prisma.user.findUnique({ where: { email } })
+    if (!user) {
+      return res.status(400).json({ error: 'Invalid credentials' })
+    }
+
+    const isPasswordValid = await comparePasswords(password, user.password)
+    if (!isPasswordValid) {
+      return res.status(400).json({ error: 'Invalid credentials' })
+    }
+
+    const token = generateToken(user.id, user.email, user.role)
+    res.status(200).json({ token, user: { id: user.id, email: user.email, role: user.role } })
+  } catch (error) {
+    console.error('Login error:', error)
+    res.status(500).json({ error: 'Error logging in' })
+  }
+}
+import type { NextApiRequest, NextApiResponse } from 'next'
 import formidable from 'formidable'
 import fs from 'fs'
-import { authenticateToken, AuthenticatedRequest } from '../../../utils/auth'
 import prisma from '../../../lib/prisma'
-import { indexDocument } from '../../../utils/vectorSearch'
+import { authenticateUser } from '../../../utils/auth'
 
 export const config = {
   api: {
@@ -307,9 +261,9 @@ export const config = {
   },
 }
 
-const handler = async (req: AuthenticatedRequest, res: NextApiResponse) => {
+const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method not allowed' })
+    return res.status(405).json({ error: 'Method not allowed' })
   }
 
   const form = new formidable.IncomingForm()
@@ -327,203 +281,268 @@ const handler = async (req: AuthenticatedRequest, res: NextApiResponse) => {
       const content = fs.readFileSync(file.filepath, 'utf8')
       const document = await prisma.document.create({
         data: {
-          userId: req.user!.id,
           title: fields.title as string,
           content,
-          mimeType: file.mimetype || 'application/octet-stream',
+          userId: (req as any).user.userId,
         },
       })
 
-      await indexDocument(document.id, content)
-
-      res.status(200).json({ message: 'Document uploaded and processed successfully', document })
+      res.status(200).json({ message: 'Document uploaded successfully', document })
     } catch (error) {
-      console.error('Error processing document:', error)
-      res.status(500).json({ error: 'Error processing document' })
+      console.error('Document upload error:', error)
+      res.status(500).json({ error: 'Error uploading document' })
     } finally {
       fs.unlinkSync(file.filepath)
     }
   })
 }
 
-export default authenticateToken(handler)
-import { NextApiResponse } from 'next'
-import { Configuration, OpenAIApi } from 'openai'
-import { authenticateToken, AuthenticatedRequest } from '../../utils/auth'
-import { searchDocuments } from '../../utils/vectorSearch'
-import { applyMiddleware } from '../../utils/rateLimit'
-import { cacheMiddleware } from '../../utils/cache'
+export default authenticateUser(handler)
+import type { NextApiRequest, NextApiResponse } from 'next'
 import prisma from '../../lib/prisma'
+import { authenticateUser } from '../../utils/auth'
+import { generateAnswer } from '../../utils/ai'
 
-const openai = new OpenAIApi(new Configuration({ apiKey: process.env.OPENAI_API_KEY }))
-
-const handler = async (req: AuthenticatedRequest, res: NextApiResponse) => {
+const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method not allowed' })
+    return res.status(405).json({ error: 'Method not allowed' })
   }
 
   const { query } = req.body
+  const userId = (req as any).user.userId
 
   try {
-    const relevantDocs = await searchDocuments(query, req.user!.id)
+    const documents = await prisma.document.findMany({ where: { userId } })
+    const context = documents.map(doc => doc.content).join('\n\n')
 
-    const context = relevantDocs.map((doc: any) => doc.content).join('\n\n')
-
-    const completion = await openai.createCompletion({
-      model: "text-davinci-002",
-      prompt: `Context: ${context}\n\nQuestion: ${query}\n\nAnswer:`,
-      max_tokens: 150,
-      n: 1,
-      stop: null,
-      temperature: 0.7,
-    })
-
-    const answer = completion.data.choices[0].text.trim()
+    const answer = await generateAnswer(context, query)
 
     const interaction = await prisma.interaction.create({
-      data: {
-        userId: req.user!.id,
-        query,
-        answer,
-        sources: {
-          create: relevantDocs.map((doc: any) => ({
-            type: 'DOCUMENT',
-            documentId: doc.id,
-            title: doc.title,
-          })),
-        },
-      },
-      include: { sources: true },
+      data: { query, answer, userId },
     })
 
-    res.status(200).json({ answer, interactionId: interaction.id, sources: interaction.sources })
+    res.status(200).json({ answer, interactionId: interaction.id })
   } catch (error) {
-    console.error('Error processing interaction:', error)
+    console.error('Interaction error:', error)
     res.status(500).json({ error: 'Error processing interaction' })
   }
 }
 
-export default authenticateToken(applyMiddleware(cacheMiddleware('interaction', 300)(handler)))
-import { NextApiResponse } from 'next'
-import { authenticateToken, AuthenticatedRequest } from '../../utils/auth'
-import prisma from '../../lib/prisma'
+export default authenticateUser(handler)
+import type { NextApiRequest, NextApiResponse } from 'next'
+import prisma from '../../../lib/prisma'
+import { authenticateUser, authorizeRoles } from '../../../utils/auth'
+import { generateSchemeOfWork } from '../../../utils/ai'
 
-const handler = async (req: AuthenticatedRequest, res: NextApiResponse) => {
+const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method not allowed' })
+    return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const { interactionId, rating } = req.body
+  const { title, details, topics, objectives } = req.body
+  const userId = (req as any).user.userId
 
   try {
-    await prisma.interaction.update({
-      where: { id: interactionId },
-      data: { rating },
-    })
-
-    res.status(200).json({ message: 'Feedback recorded successfully' })
-  } catch (error) {
-    console.error('Error recording feedback:', error)
-    res.status(500).json({ error: 'Error recording feedback' })
-  }
-}
-
-export default authenticateToken(handler)
-import { NextApiResponse } from 'next'
-import { authenticateToken, AuthenticatedRequest } from '../../utils/auth'
-import prisma from '../../lib/prisma'
-
-const handler = async (req: AuthenticatedRequest, res: NextApiResponse) => {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method not allowed' })
-  }
-
-  const { interactionId } = req.body
-
-  try {
-    await prisma.interaction.update({
-      where: { id: interactionId },
-      data: { saved: true },
-    })
-
-    res.status(200).json({ message: 'Interaction saved successfully' })
-  } catch (error) {
-    console.error('Error saving interaction:', error)
-    res.status(500).json({ error: 'Error saving interaction' })
-  }
-}
-
-export default authenticateToken(handler)
-import { NextApiResponse } from 'next'
-import { Configuration, OpenAIApi } from 'openai'
-import { authenticateToken, AuthenticatedRequest } from '../../utils/auth'
-import prisma from '../../lib/prisma'
-
-const openai = new OpenAIApi(new Configuration({ apiKey: process.env.OPENAI_API_KEY }))
-
-const handler = async (req: AuthenticatedRequest, res: NextApiResponse) => {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method not allowed' })
-  }
-
-  const { title, courseDetails, topics, learningObjectives } = req.body
-
-  try {
-    const prompt = `Generate a scheme of work for a course titled "${title}". 
-    Course details: ${courseDetails}
-    Topics: ${topics.join(', ')}
-    Learning objectives: ${learningObjectives.join(', ')}
-    
-    Please provide a detailed week-by-week plan including activities and assessments.`
-
-    const completion = await openai.createCompletion({
-      model: "text-davinci-002",
-      prompt: prompt,
-      max_tokens: 1000,
-      n: 1,
-      stop: null,
-      temperature: 0.7,
-    })
-
-    const schemeOfWorkContent = completion.data.choices[0].text.trim()
+    const content = await generateSchemeOfWork(title, details, topics, objectives)
 
     const schemeOfWork = await prisma.schemeOfWork.create({
-      data: {
-        userId: req.user!.id,
-        title,
-        content: schemeOfWorkContent,
-      },
+      data: { title, content, createdBy: userId },
     })
 
     res.status(200).json({ message: 'Scheme of work generated successfully', schemeOfWork })
   } catch (error) {
-    console.error('Error generating scheme of work:', error)
+    console.error('Scheme of work generation error:', error)
     res.status(500).json({ error: 'Error generating scheme of work' })
   }
 }
 
-export default authenticateToken(handler)
+export default authenticateUser(authorizeRoles('teacher', 'administrator')(handler))
+import React from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/router'
+
+interface LayoutProps {
+  children: React.ReactNode
+}
+
+const Layout: React.FC<LayoutProps> = ({ children }) => {
+  const router = useRouter()
+
+  const handleLogout = () => {
+    localStorage.removeItem('token')
+    router.push('/login')
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-100">
+      <nav className="bg-white shadow-lg">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex justify-between">
+            <div className="flex space-x-7">
+              <Link href="/" className="flex items-center py-4 px-2">
+                <span className="font-semibold text-gray-500 text-lg">AI Education Platform</span>
+              </Link>
+            </div>
+            <div className="flex items-center space-x-3">
+              <Link href="/dashboard" className="py-2 px-2 font-medium text-gray-500 rounded hover:bg-green-500 hover:text-white transition duration-300">Dashboard</Link>
+              <Link href="/profile" className="py-2 px-2 font-medium text-gray-500 rounded hover:bg-green-500 hover:text-white transition duration-300">Profile</Link>
+              <button onClick={handleLogout} className="py-2 px-2 font-medium text-white bg-red-500 rounded hover:bg-red-400 transition duration-300">Logout</button>
+            </div>
+          </div>
+        </div>
+      </nav>
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        {children}
+      </main>
+    </div>
+  )
+}
+
+export default Layout
 import React, { useState } from 'react'
+import { useRouter } from 'next/router'
 import axios from 'axios'
 
-export default function DocumentUploader() {
-  const [file, setFile] = useState<File | null>(null)
-  const [title, setTitle] = useState('')
-  const [uploading, setUploading] = useState(false)
+const LoginForm: React.FC = () => {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setFile(e.target.files[0])
-    }
-  }
+  const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!file) return
-
-    setUploading(true)
     setError('')
+
+    try {
+      const response = await axios.post('/api/auth/login', { email, password })
+      localStorage.setItem('token', response.data.token)
+      router.push('/dashboard')
+    } catch (error: any) {
+      setError(error.response?.data?.error || 'An error occurred during login')
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
+        <input
+          type="email"
+          id="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+          required
+        />
+      </div>
+      <div>
+        <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
+        <input
+          type="password"
+          id="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+          required
+        />
+      </div>
+      {error && <p className="text-red-500 text-sm">{error}</p>}
+      <button type="submit" className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+        Log In
+      </button>
+    </form>
+  )
+}
+
+export default LoginForm
+import React, { useState } from 'react'
+import { useRouter } from 'next/router'
+import axios from 'axios'
+
+const RegisterForm: React.FC = () => {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [role, setRole] = useState('learner')
+  const [error, setError] = useState('')
+  const router = useRouter()
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+
+    try {
+      const response = await axios.post('/api/auth/register', { email, password, role })
+      localStorage.setItem('token', response.data.token)
+      router.push('/dashboard')
+    } catch (error: any) {
+      setError(error.response?.data?.error || 'An error occurred during registration')
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
+        <input
+          type="email"
+          id="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+          required
+        />
+      </div>
+      <div>
+        <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
+        <input
+          type="password"
+          id="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+          required
+        />
+      </div>
+      <div>
+        <label htmlFor="role" className="block text-sm font-medium text-gray-700">Role</label>
+        <select
+          id="role"
+          value={role}
+          onChange={(e) => setRole(e.target.value)}
+          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+        >
+          <option value="learner">Learner</option>
+          <option value="teacher">Teacher</option>
+          <option value="administrator">Administrator</option>
+        </select>
+      </div>
+      {error && <p className="text-red-500 text-sm">{error}</p>}
+      <button type="submit" className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+        Register
+      </button>
+    </form>
+  )
+}
+
+export default RegisterForm
+import React, { useState } from 'react'
+import axios from 'axios'
+
+const DocumentUploader: React.FC = () => {
+  const [file, setFile] = useState<File | null>(null)
+  const [title, setTitle] = useState('')
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setSuccess('')
+
+    if (!file) {
+      setError('Please select a file to upload')
+      return
+    }
 
     const formData = new FormData()
     formData.append('document', file)
@@ -533,304 +552,415 @@ export default function DocumentUploader() {
       const response = await axios.post('/api/documents/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
       })
-      console.log('Document uploaded:', response.data)
+      setSuccess('Document uploaded successfully')
       setFile(null)
       setTitle('')
-    } catch (error) {
-      console.error('Error uploading document:', error)
-      setError('Error uploading document. Please try again.')
-    } finally {
-      setUploading(false)
+    } catch (error: any) {
+      setError(error.response?.data?.error || 'Error uploading document')
     }
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <input
-        type="text"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder="Document title"
-        required
-      />
-      <input type="file" onChange={handleFileChange} required />
-      <button type="submit" disabled={uploading}>
-        {uploading ? 'Uploading...' : 'Upload Document'}
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label htmlFor="title" className="block text-sm font-medium text-gray-700">Document Title</label>
+        <input
+          type="text"
+          id="title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+          required
+        />
+      </div>
+      <div>
+        <label htmlFor="document" className="block text-sm font-medium text-gray-700">Document</label>
+        <input
+          type="file"
+          id="document"
+          onChange={(e) => e.target.files && setFile(e.target.files[0])}
+          className="mt-1 block w-full"
+          required
+        />
+      </div>
+      {error && <p className="text-red-500 text-sm">{error}</p>}
+      {success && <p className="text-green-500 text-sm">{success}</p>}
+      <button type="submit" className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+        Upload Document
       </button>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
     </form>
   )
 }
+
+export default DocumentUploader
 import React, { useState } from 'react'
 import axios from 'axios'
 
-interface Source {
-  id: number
-  type: 'DOCUMENT' | 'WEB'
-  title: string
-  url?: string
-}
-
-export default function LearnerInteraction() {
+const LearnerInteraction: React.FC = () => {
   const [query, setQuery] = useState('')
   const [answer, setAnswer] = useState('')
-  const [sources, setSources] = useState<Source[]>([])
-  const [interactionId, setInteractionId] = useState<number | null>(null)
-  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
     setError('')
+    setAnswer('')
 
     try {
-      const response = await axios.post('/api/interact', { query })
+      const response = await axios.post('/api/interact', { query }, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      })
       setAnswer(response.data.answer)
-      setSources(response.data.sources)
-      setInteractionId(response.data.interactionId)
-    } catch (error) {
-      console.error('Error interacting:', error)
-      setError('Error processing your question. Please try again.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleFeedback = async (rating: number) => {
-    try {
-      await axios.post('/api/feedback', { interactionId, rating })
-      alert('Thank you for your feedback!')
-    } catch (error) {
-      console.error('Error submitting feedback:', error)
-      alert('Error submitting feedback. Please try again.')
-    }
-  }
-
-  const handleSave = async () => {
-    try {
-      await axios.post('/api/saveInteraction', { interactionId })
-      alert('Interaction saved successfully!')
-    } catch (error) {
-      console.error('Error saving interaction:', error)
-      alert('Error saving interaction. Please try again.')
+    } catch (error: any) {
+      setError(error.response?.data?.error || 'Error processing your question')
     }
   }
 
   return (
-    <div>
-      <form onSubmit={handleSubmit}>
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Ask a question"
-          required
-        />
-        <button type="submit" disabled={loading}>
-          {loading ? 'Processing...' : 'Ask'}
+    <div className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label htmlFor="query" className="block text-sm font-medium text-gray-700">Ask a question</label>
+          <input
+            type="text"
+            id="query"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            required
+          />
+        </div>
+        <button type="submit" className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+          Ask
         </button>
       </form>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+      {error && <p className="text-red-500 text-sm">{error}</p>}
       {answer && (
-        <div>
-          <h3>Answer:</h3>
-          <p>{answer}</p>
-          <h4>Sources:</h4>
-          <ul>
-            {sources.map((source) => (
-              <li key={source.id}>
-                {source.type === 'WEB' && source.url ? (
-                  <a href={source.url} target="_blank" rel="noopener noreferrer">
-                    {source.title}
-                  </a>
-                ) : (
-                  source.title
-                )}
-              </li>
-            ))}
-          </ul>
-          <div>
-            <button onClick={() => handleFeedback(1)}>👍</button>
-            <button onClick={() => handleFeedback(-1)}>👎</button>
-            <button onClick={handleSave}>Save</button>
-          </div>
+        <div className="mt-4">
+          <h3 className="text-lg font-medium text-gray-900">Answer:</h3>
+          <p className="mt-2 text-sm text-gray-500">{answer}</p>
         </div>
       )}
     </div>
   )
 }
+
+export default LearnerInteraction
 import React, { useState } from 'react'
 import axios from 'axios'
 
-export default function SchemeOfWorkGenerator() {
+const SchemeOfWorkGenerator: React.FC = () => {
   const [title, setTitle] = useState('')
-  const [courseDetails, setCourseDetails] = useState('')
+  const [details, setDetails] = useState('')
   const [topics, setTopics] = useState('')
-  const [learningObjectives, setLearningObjectives] = useState('')
-  const [generating, setGenerating] = useState(false)
+  const [objectives, setObjectives] = useState('')
+  const [schemeOfWork, setSchemeOfWork] = useState('')
   const [error, setError] = useState('')
-  const [schemeOfWork, setSchemeOfWork] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setGenerating(true)
     setError('')
+    setSchemeOfWork('')
 
     try {
-      const response = await axios.post('/api/generateSchemeOfWork', {
+      const response = await axios.post('/api/schemeofwork/generate', {
         title,
-        courseDetails,
+        details,
         topics: topics.split(',').map(t => t.trim()),
-        learningObjectives: learningObjectives.split(',').map(lo => lo.trim()),
+        objectives: objectives.split(',').map(o => o.trim()),
+      }, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       })
       setSchemeOfWork(response.data.schemeOfWork.content)
-    } catch (error) {
-      console.error('Error generating scheme of work:', error)
-      setError('Error generating scheme of work. Please try again.')
-    } finally {
-      setGenerating(false)
+    } catch (error: any) {
+      setError(error.response?.data?.error || 'Error generating scheme of work')
     }
   }
 
   return (
-    <div>
-      <h2>Generate Scheme of Work</h2>
-      <form onSubmit={handleSubmit}>
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Course Title"
-          required
-        />
-        <textarea
-          value={courseDetails}
-          onChange={(e) => setCourseDetails(e.target.value)}
-          placeholder="Course Details"
-          required
-        />
-        <input
-          type="text"
-          value={topics}
-          onChange={(e) => setTopics(e.target.value)}
-          placeholder="Topics (comma-separated)"
-          required
-        />
-        <input
-          type="text"
-          value={learningObjectives}
-          onChange={(e) => setLearningObjectives(e.target.value)}
-          placeholder="Learning Objectives (comma-separated)"
-          required
-        />
-        <button type="submit" disabled={generating}>
-          {generating ? 'Generating...' : 'Generate Scheme of Work'}
+    <div className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label htmlFor="title" className="block text-sm font-medium text-gray-700">Course Title</label>
+          <input
+            type="text"
+            id="title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            required
+          />
+        </div>
+        <div>
+          <label htmlFor="details" className="block text-sm font-medium text-gray-700">Course Details</label>
+          <textarea
+            id="details"
+            value={details}
+            onChange={(e) => setDetails(e.target.value)}
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            required
+          />
+        </div>
+        <div>
+          <label htmlFor="topics" className="block text-sm font-medium text-gray-700">Topics (comma-separated)</label>
+          <input
+            type="text"
+            id="topics"
+            value={topics}
+            onChange={(e) => setTopics(e.target.value)}
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            required
+          />
+        </div>
+        <div>
+          <label htmlFor="objectives" className="block text-sm font-medium text-gray-700">Learning Objectives (comma-separated)</label>
+          <input
+            type="text"
+            id="objectives"
+            value={objectives}
+            onChange={(e) => setObjectives(e.target.value)}
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            required
+          />
+        </div>
+        <button type="submit" className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+          Generate Scheme of Work
         </button>
       </form>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+      {error && <p className="text-red-500 text-sm">{error}</p>}
       {schemeOfWork && (
-        <div>
-          <h3>Generated Scheme of Work:</h3>
-          <pre>{schemeOfWork}</pre>
+        <div className="mt-4">
+          <h3 className="text-lg font-medium text-gray-900">Generated Scheme of Work:</h3>
+          <pre className="mt-2 whitespace-pre-wrap text-sm text-gray-500">{schemeOfWork}</pre>
         </div>
       )}
     </div>
   )
 }
-import React from 'react'
+
+export default SchemeOfWorkGenerator
+import type { NextPage } from 'next'
 import Head from 'next/head'
+import Link from 'next/link'
+import Layout from '../components/Layout'
 
-interface LayoutProps {
-  children: React.ReactNode
-}
-
-export default function Layout({ children }: LayoutProps) {
+const Home: NextPage = () => {
   return (
-    <div>
+    <Layout>
       <Head>
-        <title>AI Education Tools</title>
-        <meta name="description" content="AI-powered education tools" />
+        <title>AI Education Platform</title>
+        <meta name="description" content="AI-powered education platform" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      <main>
-        <header>
-          <h1>AI Education Tools</h1>
-        </header>
-        {children}
-      </main>
-
-      <footer>
-        <p>&copy; 2023 AI Education Tools</p>
-      </footer>
-    </div>
-  )
-}
-import type { AppProps } from 'next/app'
-import Layout from '../components/Layout'
-
-function MyApp({ Component, pageProps }: AppProps) {
-  return (
-    <Layout>
-      <Component {...pageProps} />
+      <div className="text-center">
+        <h1 className="text-4xl font-bold mb-4">Welcome to AI Education Platform</h1>
+        <p className="text-xl mb-8">Empower your learning with AI-assisted education</p>
+        <div className="space-x-4">
+          <Link href="/login" className="inline-block bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+            Login
+          </Link>
+          <Link href="/register" className="inline-block bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+            Register
+          </Link>
+        </div>
+      </div>
     </Layout>
   )
 }
 
-export default MyApp
+export default Home
+import type { NextPage } from 'next'
+import Head from 'next/head'
+import Layout from '../components/Layout'
+import LoginForm from '../components/LoginForm'
+
+const Login: NextPage = () => {
+  return (
+    <Layout>
+      <Head>
+        <title>Login - AI Education Platform</title>
+        <meta name="description" content="Login to AI Education Platform" />
+        <link rel="icon" href="/favicon.ico" />
+      </Head>
+
+      <div className="max-w-md mx-auto">
+        <h1 className="text-3xl font-bold mb-4">Login</h1>
+        <LoginForm />
+      </div>
+    </Layout>
+  )
+}
+
+export default Login
+import type { NextPage } from 'next'
+import Head from 'next/head'
+import Layout from '../components/Layout'
+import RegisterForm from '../components/RegisterForm'
+
+const Register: NextPage = () => {
+  return (
+    <Layout>
+      <Head>
+        <title>Register - AI Education Platform</title>
+        <meta name="description" content="Register for AI Education Platform" />
+        <link rel="icon" href="/favicon.ico" />
+      </Head>
+
+      <div className="max-w-md mx-auto">
+        <h1 className="text-3xl font-bold mb-4">Register</h1>
+        <RegisterForm />
+      </div>
+    </Layout>
+  )
+}
+
+export default Register
+import type { NextPage } from 'next'
+import { useEffect, useState } from 'react'
+import Head from 'next/head'
+import { useRouter } from 'next/router'
+import Layout from '../components/Layout'
 import DocumentUploader from '../components/DocumentUploader'
 import LearnerInteraction from '../components/LearnerInteraction'
 import SchemeOfWorkGenerator from '../components/SchemeOfWorkGenerator'
 
-export default function Home() {
+const Dashboard: NextPage = () => {
+  const [userRole, setUserRole] = useState<string | null>(null)
+  const router = useRouter()
+
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      router.push('/login')
+    } else {
+      // Decode the token to get the user role
+      const payload = JSON.parse(atob(token.split('.')[1]))
+      setUserRole(payload.role)
+    }
+  }, [router])
+
+  if (!userRole) {
+    return <div>Loading...</div>
+  }
+
   return (
-    <div>
-      <h2>Upload Documents</h2>
-      <DocumentUploader />
-      <h2>Generate Scheme of Work</h2>
-      <SchemeOfWorkGenerator />
-      <h2>Ask Questions</h2>
-      <LearnerInteraction />
-    </div>
+    <Layout>
+      <Head>
+        <title>Dashboard - AI Education Platform</title>
+        <meta name="description" content="AI Education Platform Dashboard" />
+        <link rel="icon" href="/favicon.ico" />
+      </Head>
+
+      <h1 className="text-3xl font-bold mb-4">Dashboard</h1>
+      <div className="space-y-8">
+        <DocumentUploader />
+        <LearnerInteraction />
+        {(userRole === 'teacher' || userRole === 'administrator') && (
+          <SchemeOfWorkGenerator />
+        )}
+      </div>
+    </Layout>
   )
 }
-const databaseUrl = process.env.DATABASE_URL;
-const jwtSecret = process.env.JWT_SECRET;
-const openaiApiKey = process.env.OPENAI_API_KEY;
 
-const config = {
-  databaseUrl,
-  jwtSecret,
-  openaiApiKey,
-};
-import dotenv from 'dotenv';
+export default Dashboard
+import type { NextPage } from 'next'
+import { useEffect, useState } from 'react'
+import Head from 'next/head'
+import { useRouter } from 'next/router'
+import axios from 'axios'
+import Layout from '../components/Layout'
 
-// Load environment variables from .env file
-dotenv.config();
+const Profile: NextPage = () => {
+  const [user, setUser] = useState<any>(null)
+  const [email, setEmail] = useState('')
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const router = useRouter()
 
-const config = {
-  databaseUrl: process.env.DATABASE_URL,
-  jwtSecret: process.env.JWT_SECRET,
-  openaiApiKey: process.env.OPENAI_API_KEY,
-  nodeEnv: process.env.NODE_ENV || 'development',
-  port: parseInt(process.env.PORT || '3000', 10),
-  frontendUrl: process.env.FRONTEND_URL,
-  // Add other variables as needed
-};
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      router.push('/login')
+    } else {
+      // Decode the token to get the user info
+      const payload = JSON.parse(atob(token.split('.')[1]))
+      setUser(payload)
+      setEmail(payload.email)
+    }
+  }, [router])
 
-// Validate that required environment variables are set
-const requiredEnvVars = ['DATABASE_URL', 'JWT_SECRET', 'OPENAI_API_KEY'];
-for (const envVar of requiredEnvVars) {
-  if (!process.env[envVar]) {
-    throw new Error(`Missing required environment variable: ${envVar}`);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setSuccess('')
+
+    try {
+      const response = await axios.put(`/api/users/${user.userId}`, { email }, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      })
+      setSuccess('Profile updated successfully')
+    } catch (error: any) {
+      setError(error.response?.data?.error || 'Error updating profile')
+    }
   }
+
+  if (!user) {
+    return <div>Loading...</div>
+  }
+
+  return (
+    <Layout>
+      <Head>
+        <title>Profile - AI Education Platform</title>
+        <meta name="description" content="User Profile - AI Education Platform" />
+        <link rel="icon" href="/favicon.ico" />
+      </Head>
+
+      <h1 className="text-3xl font-bold mb-4">Profile</h1>
+      <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
+        <div>
+          <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
+          <input
+            type="email"
+            id="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Role</label>
+          <p className="mt-1 text-sm text-gray-500">{user.role}</p>
+        </div>
+        {error && <p className="text-red-500 text-sm">{error}</p>}
+        {success && <p className="text-green-500 text-sm">{success}</p>}
+        <button type="submit" className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+          Update Profile
+        </button>
+      </form>
+    </Layout>
+  )
 }
 
-export default config;
-    const subscription = supabase
-      .from('documents')
-      .on('INSERT', handleInsert)
-      .subscribe()
+export default Profile
+import '../styles/globals.css'
+import type { AppProps } from 'next/app'
+
+function MyApp({ Component, pageProps }: AppProps) {
+  return <Component {...pageProps} />
+}
+
+export default MyApp
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  reactStrictMode: true,
+  swcMinify: true,
+}
+
+module.exports = nextConfig
